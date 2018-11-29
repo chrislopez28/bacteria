@@ -1,0 +1,23 @@
+Package: bacteria
+Type: Package
+Title: Bacteria Water Quality Compliance Evaluation
+Version: 0.1.0
+Authors@R: person("Chris", "Lopez", email = "chris.lopez@waterboards.ca.gov",
+               role = c("aut", "cre"))
+Maintainer: Chris Lopez <chris.lopez@waterboards.ca.gov>
+Description: This package aids in the analysis of indicator bacteria water quality
+    monitoring data with respect to water quality standards in the State of California.
+License: GPL-3
+Encoding: UTF-8
+LazyData: true
+Depends: 
+    R (>= 3.4.4)
+Imports:
+    assertthat,
+    dplyr,
+    plyr,
+    lubridate,
+    EnvStats
+Suggests:
+    ggplot2
+RoxygenNote: 6.0.1
