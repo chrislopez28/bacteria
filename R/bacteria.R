@@ -55,201 +55,6 @@ calc_mode <- function(x) {
   ux[which.max(tabulate(match(x, ux)))]
 }
 
-#' Tidy Bacteria Data
-#'
-#' Tidies water quality data so that bacteria data is grouped together.
-#'
-#' @param df a data frame of monitoring data.
-#' @return a data frame of monitoring data that selects indicator bacteria results and reorganizes
-#' results by sampling date.
-#' @examples
-#' tidy_bacteria(smb_beachdata_15-16)
-#' tidy_bacteria(CEDEN_export)
-#' @section Warning:
-#' For this code to work, the input data frame should in an analytical record format
-#' (e.g. CEDEN) that includes columns for the following:
-#'
-#' StationCode, SampleDate, WeatherCode, AnalyteName, Result, ResQualCode, MDL, and RL
-#'
-#' Indiciator bacteria names in the "AnalyteName" field should be labeled as followed:
-#'
-#' "E. coli", "Enterococcus", "Coliform, Fecal", and "Coliform, Total"
-#' @export
-
-tidy_bacteria <- function(df){
-  tidycols <- c("StationCode", "SampleDate", "WeatherCondition", "AnalyteName", "Result", "Samples", "ResQualCode", "MDL", "RL")
-  indicators <- c("E. coli", "Coliform, Fecal", "Coliform, Total", "Enterococcus")
-
-  if (col_check(df, tidycols) == FALSE) {
-    stop("Missing columns. Data frame should contain the following variables: StationCode, SampleDate, WeatherCondition, AnalyteName, Result, Samples, ResQualCode, MDL, and RL")
-  }
-
-  df <- df %>%
-    select(StationCode, SampleDate, WeatherCondition, AnalyteName, Result, Samples, ResQualCode, MDL, RL) %>%
-    filter(AnalyteName %in% indicators)
-
-  ecoli <- df %>% filter(AnalyteName == "E. coli")
-  fecal_coli <- df %>% filter(AnalyteName == "Coliform, Fecal")
-  total_coli <- df %>% filter(AnalyteName == "Coliform, Total")
-  entero <- df %>% filter(AnalyteName == "Enterococcus")
-
-  bact <- tibble::frame_data(
-    ~variable, ~name, ~result, ~samples, ~qual, ~mdl, ~rl,
-    ecoli, "E. coli", "ecoli",  "ecoli_n", "ecoli_qual", "ecoli_mdl", "ecoli_rl",
-    fecal_coli, "Coliform, Fecal",  "fecal_coliform", "fc_n", "fc_qual", "fc_mdl", "fc_rl",
-    total_coli, "Coliform, Total",  "total_coliform", "tc_n", "tc_qual", "tc_mdl", "tc_rl",
-    entero, "Enterococcus", "enterococcus", "ent_n", "ent_qual", "ent_mdl", "ent_rl"
-  )
-
-  #Split Data Frames by Constituent
-  for (i in seq_along(bact$variable)){
-    bact$variable[[i]] <- bact$variable[[i]] %>%
-      dplyr::filter(AnalyteName == bact$name[[i]]) %>%
-      dplyr::mutate(!!bact$result[[i]] := Result,
-             !!bact$samples[[i]] := Samples,
-             !!bact$qual[[i]] := ResQualCode,
-             !!bact$mdl[[i]] := MDL,
-             !!bact$rl[[i]] := RL)
-
-    bact$variable[[i]] <- bact$variable[[i]] %>%
-      dplyr::select(-AnalyteName, -Result, -Samples, -ResQualCode, -MDL, -RL)
-  }
-
-  #Join Tables Together
-  join_list = c("StationCode", "SampleDate", "WeatherCondition")
-
-  df_join <- dplyr::full_join(bact$variable[[1]], bact$variable[[2]], by = join_list)
-  df_join <- dplyr::full_join(df_join, bact$variable[[3]], by = join_list)
-  df_join <- dplyr::full_join(df_join, bact$variable[[4]], by = join_list)
-
-  return(df_join)
-}
-
-#' Replace Non Detects
-#'
-#' Replace non detects in the data to allow for the calculation of geometric means.
-#'
-#' @param df a data frame of monitoring data that has been tidied by tidy_bacteria
-#' @param assume_mdl a logical
-#' @param ecoli_mdl a numeric
-#' @param fc_mdl a numeric
-#' @param tc_mdl a numeric
-#' @param ent_mdl a numeric
-#' @return a data frame
-#' @export
-
-replace_nd <- function(df, assume_mdl = TRUE, ecoli_mdl = 10, fc_mdl = 10, tc_mdl = 10, ent_mdl = 10){
-  # TODO: Check if df is in FORMAT B
-
-  dt <- tibble::frame_data(
-    ~result, ~qual, ~mdl, ~rl, ~assume,
-    "ecoli", "ecoli_qual", "ecoli_mdl", "ecoli_rl", ecoli_mdl,
-    "fecal_coliform", "fc_qual", "fc_mdl", "fc_rl", fc_mdl,
-    "total_coliform", "tc_qual", "tc_mdl", "tc_rl", tc_mdl,
-    "enterococcus", "ent_qual", "ent_mdl", "ent_rl", ent_mdl
-  )
-
-  for (i in seq_along(dt$result)){
-
-    ### Replace blank results that have ND/DNQ/< qualifier with MDL or RL
-    temp <- df %>%
-      dplyr::mutate(counter := if_else(is.na(!!as.name(dt$result[[i]])) & !!as.name(dt$qual[[i]]) %in% c("ND", "DNQ", "<"),
-                                                         TRUE, FALSE))
-
-    if (sum(temp$counter, na.rm = TRUE) > 0) {
-      print(paste0("Replacing ", sum(temp$counter, na.rm = TRUE), " ", dt$result[[i]], " results with MDL or RL."))
-    }
-    df <- df %>%
-      dplyr::mutate(!!as.name(dt$result[[i]]) := if_else(is.na(!!as.name(dt$result[[i]])) & !!as.name(dt$qual[[i]]) %in% c("ND", "DNQ", "<"),
-                                                  !!as.name(dt$mdl[[i]]), !!as.name(dt$result[[i]]))) %>%
-      dplyr::mutate(!!as.name(dt$result[[i]]) := if_else(is.na(!!as.name(dt$result[[i]])) & !!as.name(dt$qual[[i]]) %in% c("ND", "DNQ", "<"),
-                                                  !!as.name(dt$rl[[i]]), !!as.name(dt$result[[i]])))
-
-    if (assume_mdl == TRUE){
-
-      ### Replace blank results that have ND/DNQ/< qualifier with assumed MDL
-      temp2 <- df %>%
-        dplyr::mutate(counter := if_else(is.na(!!as.name(dt$result[[i]])) & !!as.name(dt$qual[[i]]) %in% c("ND", "DNQ", "<"),
-                                         TRUE, FALSE))
-      if (sum(temp2$counter, na.rm = TRUE) > 0) {
-        print(paste0("Replacing ", sum(temp2$counter, na.rm = TRUE), " ", dt$result[[i]], " results with assumed MDL, since no MDL or RL specified."))
-      }
-      df <- df %>%
-        dplyr::mutate(!!as.name(dt$result[[i]]) := if_else(is.na(!!as.name(dt$result[[i]])) & !!as.name(dt$qual[[i]]) %in% c("ND", "DNQ", "<"),
-                                                    dt$assume[[i]], !!as.name(dt$result[[i]])))
-
-      ### Replace results < 1 with assumed MDL
-      temp3 <- df %>%
-        dplyr::mutate(counter := if_else((!!as.name(dt$result[[i]]) < 1),
-                                         TRUE, FALSE))
-      if (sum(temp3$counter, na.rm = TRUE) > 0) {
-        print(paste0("Replacing ", sum(temp3$counter, na.rm = TRUE), " ", dt$result[[i]], " results with assumed MDL, since result < 1."))
-      }
-      df <- df %>%
-        dplyr::mutate(!!as.name(dt$result[[i]]) := if_else((!!as.name(dt$result[[i]]) < 1),
-                                                           dt$assume[[i]], !!as.name(dt$result[[i]])))
-    }
-  }
-  return(df)
-}
-
-#' Get First Date
-#'
-#' Returns the first date found in the SampleDate column of a data frame.
-#'
-#' @param df a data frame with a column of dates named "SampleDate"
-#' @return This function returns a length-one Date object
-
-first_date <- function(df){
-  first <- df %>%
-    dplyr::arrange(SampleDate) %>%
-    as.data.frame() %>%
-    dplyr::slice(1L)
-
-  return (first[["SampleDate"]])
-}
-
-#' Get Last Date
-#'
-#' Returns the last date found in the SampleDate column of a data frame.
-#'
-#' @param df a data frame with a column of dates named "SampleDate"
-#' @return This function returns a length-one Date object
-
-last_date <- function(df){
-  last <- df %>%
-    dplyr::arrange(SampleDate) %>%
-    as.data.frame() %>%
-    dplyr::slice(n())
-
-  return(last[["SampleDate"]])
-}
-
-#' Insert Daily Rows
-#'
-#' Inserts a row for each day between the first and last dates found in the SampleDate
-#' column of a data frame.
-#'
-#' @param df a data frame of monitoring data that has been tidied by tidy_bacteria
-#' @return This functions returns a data frame with the same columns as df.
-#' @export
-
-expand_dates <- function(df){
-  if (length(unique(df$StationCode)) > 1) stop(">1 StationCode in data frame. This function only works for data frames with data from a single monitoring station.")
-
-  station <- unique(df$StationCode)
-
-  start_dt <- first_date(df)
-  end_dt <- last_date(df)
-
-  obs <- data.frame(SampleDate = seq(from = start_dt, to = end_dt, by = "1 day"), StationCode = station, stringsAsFactors = FALSE)
-
-  df <- df %>%
-    mutate(Data_Row = TRUE)
-
-  joined <- dplyr::left_join(x = obs, y = df, by = c("SampleDate", "StationCode"))
-  joined
-}
 
 #' Calculate Geometric Means
 #'
@@ -396,77 +201,6 @@ check_sslimits <- function(df, BU = "REC-1", water_type = "marine"){
                                                                     FALSE))
   }
   return(df)
-}
-
-#' Grab Single Sample Limitations
-#'
-#' Retrieves single sample water quality objectives for indicator bacteria.
-#'
-#' @param BU a string of either "REC-1", "LREC-1", or "REC-2" representing the highest
-#'     beneficial use of the water body
-#' @param water_type a string of either "fresh" or "marine' representing the water type
-#'     of the water body
-#' @return a numeric vector with the single sample objectives for e. coli, fecal coliform,
-#' total coliform, and enterococcus
-
-grab_limits_ss <- function(BU, water_type){
-  # TODO: warnings
-  # TODO: SHELL limits
-
-  if (water_type == "marine"){
-    if(BU == "REC-1"){
-      limits <- c(NA, 400, 10000, 104)
-    }
-  }
-
-  if (water_type == "fresh"){
-    if (BU == "REC-1"){
-      limits <- c(235, NA, NA, NA)
-    } else if (BU == "LREC-1"){
-      limits <- c(576, NA, NA, NA)
-    } else if (BU == "REC-2"){
-      limits <- c(NA, 4000, NA, NA)
-    }
-  }
-
-  names(limits) <- c("ecoli_WQO", "fc_WQO", "tc_WQO", "ent_WQO")
-  return(limits)
-}
-
-#' Grab Geomteric Mean Limitations
-#'
-#' Retrieves geometric mean water quality objectives for indicator bacteria.
-#'
-#' @param BU a string of either "REC-1", "LREC-1", or "REC-2" representing the highest
-#'     beneficial use of the water body
-#' @param water_type a string of either "fresh" or "marine' representing the water type
-#'     of the water body
-#' @return a numeric vector with the geometric mean objectives for e. coli, fecal coliform,
-#' total coliform, and enterococcus
-
-grab_limits_geo <- function(BU, water_type){
-  # TODO: warnings
-  # TODO: SHELL limits for total coliform: 30-day median = 70;
-  # >10% samples over 30-day period cannot exceed 230 (5-tube decimal dilution) or 330 (3-tube decimal dilution)
-
-  if (water_type == "marine"){
-    if(BU == "REC-1"){
-      limits <- c(NA, 200, 1000, 35)
-    }
-  }
-
-  if (water_type == "fresh"){
-    if (BU == "REC-1"){
-      limits <- c(126, NA, NA, NA)
-    } else if (BU == "LREC-1"){
-      limits <- c(126, NA, NA, NA)
-    } else if (BU == "REC-2"){
-      limits <- c(NA, 2000, NA, NA)
-    }
-  }
-
-  names(limits) <- c("ecoli_WQO", "fc_WQO", "tc_WQO", "ent_WQO")
-  return(limits)
 }
 
 
@@ -820,89 +554,7 @@ update_fecal <- function(df, sub_ecoli_for_fecal = FALSE, ...){
   df
 }
 
-#' Analyze Multiple Stations
-#'
-#' Runs bacteria checker on multiple stations
-#'
-#' @param df a data frame
-#' @param sites a character vector with names of the sites
-#' @param BU a character vector with the highest beneficial use for the associated site
-#' @param water_type a string of either "fresh" or "marine' representing the water type for the site
-#' @return a list of data frames that correspond to each site
-bact_check <- function(df, sites, BU, water_type, ...){
 
-  df <- df %>%
-    average_results_daily()
-
-  df <- df %>%
-    tidy_bacteria()
-
-  df <- df %>%
-    replace_nd() %>%
-    update_fecal(sub_ecoli_for_fecal, ...)
-
-  analysis_sites <- data.frame(sites, BU, water_type, stringsAsFactors = FALSE)
-  names(analysis_sites) <- c("StationCode", "BU", "water_type")
-
-  analysis_sites <- analysis_sites[(analysis_sites$StationCode %in% unique(df$StationCode)), ]
-
-  out <- vector("list", length(analysis_sites$StationCode))
-  results <- vector("list", length(analysis_sites$StationCode))
-
-  for (i in seq_along(analysis_sites$StationCode)){
-    out[[i]] <- df %>%
-      dplyr::filter(StationCode == analysis_sites$StationCode[[i]])
-
-    out[[i]] <- expand_dates(out[[i]])
-    out[[i]] <- bact_geomeans(out[[i]], ...) %>%
-      check_geolimits(BU = analysis_sites$BU[[i]], water_type = analysis_sites$water_type[[i]], ...) %>%
-      check_sslimits(BU = analysis_sites$BU[[i]], water_type = analysis_sites$water_type[[i]])
-
-    if (analysis_sites$water_type[[i]] == "marine"){
-      out[[i]] <- out[[i]] %>% check_fecal_to_total(...)
-    } else if (analysis_sites$water_type[[i]] == "fresh"){
-      out[[i]] <- out[[i]] %>% mutate("fc_to_tc" = NA, "tc_WQO_ss_2" = NA, "exceed_tc_WQO_ss_2" = NA)
-    }
-
-    out[[i]] <- out[[i]] %>%
-      exceed_ss() %>%
-      order_bacteria_columns()
-  }
-  out
-}
-
-#' Calculate Annual Exceedances
-#'
-#' Runs bacteria checker on multiple stations and calculates the number of annual exceedances
-#'
-#' @param df a data frame
-#' @param sites a character vector with names of the sites
-#' @param BU a character vector with the highest beneficial use for the associated site
-#' @param water_type a string of either "fresh" or "marine' representing the water type for the site
-#' @return a list of data frames that correspond to each site
-bact_ann_exceeds <- function(df, sites, BU, water_type, ...){
-
-  analysis_sites <- data.frame(sites, BU, water_type, stringsAsFactors = FALSE)
-  names(analysis_sites) <- c("StationCode", "BU", "water_type")
-
-  analysis_sites <- analysis_sites[(analysis_sites$StationCode %in% unique(df$StationCode)), ]
-
-  out <- bact_check(df, sites, BU, water_type, ...)
-  results <- vector("list", length(analysis_sites$StationCode))
-
-  for (i in seq_along(analysis_sites$StationCode)){
-    station <- as.character(analysis_sites$StationCode[[i]])
-    start <- first_date(out[[i]])
-    end <- last_date(out[[i]])
-
-    print(i)
-    print(start)
-    print(end)
-
-    results[[i]] <- annual_exceedances(out[[i]], station = station, start_date = start, end_date = end)
-  }
-  results
-}
 
 
 collapse_bact_data <- function(tidy_df){
@@ -928,8 +580,14 @@ bact_heatmap <- function(tidy_df, title, subtitle){
 
   df <- df[df$SampleDate >= first_date(tidy_df), ]  # filter reqd years
 
-  df$monthf <- factor(df$month,levels = as.character(1:12),labels = c("Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"), ordered = TRUE)
-  df$weekdayf <- factor(df$weekday,levels=rev(1:7),labels = rev(c("Mon","Tue","Wed","Thu","Fri","Sat","Sun")), ordered = TRUE)
+  df$monthf <- factor(df$month,levels = as.character(1:12),
+                      labels = c("Jan","Feb","Mar","Apr","May","Jun","Jul",
+                                 "Aug","Sep","Oct","Nov","Dec"), ordered = TRUE)
+
+  df$weekdayf <- factor(df$weekday,
+                        levels=rev(1:7),
+                        labels = rev(c("Mon","Tue","Wed","Thu","Fri","Sat","Sun")),
+                        ordered = TRUE)
 
   # Create Month Week
   df$yearmonth <- zoo::as.yearmon(df$SampleDate)
@@ -938,14 +596,15 @@ bact_heatmap <- function(tidy_df, title, subtitle){
   df <- df[, c("year", "yearmonthf", "monthf", "week", "monthweek", "weekdayf", "enterococcus", "exceed_day", "WeatherCondition", "Data_Row")]
 
   df <- df %>% dplyr::mutate(exceed_day = ifelse(exceed_day, "Exceedance", "No Exceedance"))
-  fillcolor <- c("red", "green")
 
+  fillcolor <- c("red", "green")
   plot_title = title
   sub_title = subtitle
 
   # Plot
   ggplot2::ggplot(df) +
-    ggplot2::geom_tile(aes(monthweek, weekdayf, fill = exceed_day), color = "black") +
+    ggplot2::geom_tile(aes(monthweek, weekdayf, fill = exceed_day),
+                       color = "black") +
     ggplot2::facet_grid(year~monthf) +
     ggplot2::scale_fill_manual(name = "", values = fillcolor) +
     ggplot2::labs(x="Week of Month",
@@ -953,7 +612,8 @@ bact_heatmap <- function(tidy_df, title, subtitle){
          title = plot_title,
          subtitle = sub_title,
          fill="") +
-    ggplot2::geom_point(data = filter(df, Data_Row == TRUE), aes(monthweek, weekdayf, shape = WeatherCondition)) +
+    ggplot2::geom_point(data = filter(df, Data_Row == TRUE),
+                        aes(monthweek, weekdayf, shape = WeatherCondition)) +
     ggplot2::scale_shape_manual(values = c(0, 16))
 }
 
