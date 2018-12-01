@@ -19,5 +19,6 @@ Imports:
     lubridate,
     EnvStats
 Suggests:
-    ggplot2
+    ggplot2,
+    testthat
 RoxygenNote: 6.0.1
