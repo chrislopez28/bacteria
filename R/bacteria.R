@@ -58,15 +58,20 @@ calc_mode <- function(x) {
 
 #' Calculate Geometric Means
 #'
-#' Expands the input data frame by adding columns for 42-day or 30-day rolling geometric means and counts
-#' of samples used to calculate the geometric mean.
+#' Expands the input data frame by adding columns for 42-day or 30-day rolling
+#' geometric means and counts of samples used to calculate the geometric mean.
 #'
-#' @param df a data frame of indicator bacteria monitoring data that has been tidied by
-#' tidy_bacteria(df) and has daily rows between the first and last dates in the "SampleDate" column using expand_dates(df)
-#' @param six_week a logical value indicating whether the calculation should use a six-week (i.e. 42 day)
-#' period for the geometric mean calculation. If TRUE, the function will calculate 42-day geometric means
-#' on every Sunday. If FALSE, the function will calculate 30-day geometric means on each date that there is
-#' a result for the associated constituent (either E. coli, Fecal Coliform, Total Coliform, or Enterococcus)
+#' @param df a data frame of indicator bacteria monitoring data that has been
+#' tidied by tidy_bacteria(df) and has daily rows between the first and last
+#' dates in the "SampleDate" column using expand_dates(df)
+#'
+#' @param six_week a logical value indicating whether the calculation should use
+#'  a six-week (i.e. 42 day) period for the geometric mean calculation. If TRUE,
+#'  the function will calculate 42-day geometric means on every Sunday. If
+#'  FALSE, the function will calculate 30-day geometric means on each date that
+#'  there is a result for the associated constituent (either E. coli, Fecal
+#'  Coliform, Total Coliform, or Enterococcus)
+#'
 #' @return This function returns a data frame with additional columns for geometric means and sample counts.
 #' The geometric mean columns are ecoli_geomean, fc_geomean, tc_geomean, and ent_geomean. The sample count
 #' columns are ecoli_geo_count, fc_geo_count, tc_geo_count, and ent_geo_count.
