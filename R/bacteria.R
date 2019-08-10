@@ -4,7 +4,8 @@
 #'
 #' @param df a data frame of water quality data
 #' @param x a character vector of column names
-#' @return a logical value that is TRUE if all elements of names are columns in the data frame
+#' @return a logical value that is TRUE if all elements of names are columns in
+#' the data frame
 #' @examples
 #' col_check(df, c("StationCode", "SampleDate", "WeatherCondition"))
 #' col_check(df, required_columns)
@@ -28,12 +29,6 @@ average_results_daily <- function(df){
               MDL = max(MDL),
               RL = max(RL)) %>%
     as.data.frame
-
-  # df_old <- df %>%
-  #   select(StationCode, SampleDate, AnalyteName, WeatherCondition, ResQualCode, MDL, RL)
-  #
-  # df <- semi_join(x = df_new, y = df_old, by = c("StationCode", "SampleDate", "AnalyteName")) %>%
-  #   as.data.frame()
 
   df_new
 }
@@ -72,14 +67,17 @@ calc_mode <- function(x) {
 #'  there is a result for the associated constituent (either E. coli, Fecal
 #'  Coliform, Total Coliform, or Enterococcus)
 #'
-#' @return This function returns a data frame with additional columns for geometric means and sample counts.
-#' The geometric mean columns are ecoli_geomean, fc_geomean, tc_geomean, and ent_geomean. The sample count
+#' @return This function returns a data frame with additional columns for
+#' geometric means and sample counts.
+#' The geometric mean columns are ecoli_geomean, fc_geomean, tc_geomean, and
+#' ent_geomean. The sample count
 #' columns are ecoli_geo_count, fc_geo_count, tc_geo_count, and ent_geo_count.
 #' @export
 
 bact_geomeans <- function(df, six_week = TRUE, ...){
   # TODO: Check if df has appropriate columns / Use colcheck()
-  # TODO: Check if df has consecutive SampleDates from first row to last row / Create consecutivecheck()
+  # TODO: Check if df has consecutive SampleDates from first row to last row /
+  # Create consecutivecheck()
 
   dt <- tibble::frame_data(
     ~result, ~geomean, ~geocount,
@@ -88,16 +86,6 @@ bact_geomeans <- function(df, six_week = TRUE, ...){
     "total_coliform", "tc_geomean", "tc_geo_count",
     "enterococcus", "ent_geomean", "ent_geo_count"
   )
-
-  #
-  # dt <- tibble::frame_data(
-  #   ~result, ~qual, ~mdl, ~rl, ~WQO_ss, ~WQO_ss_val, ~exceed_WQO_ss, ~geomean, ~geocount,  ~WQO_geo, ~WQO_geo_val, ~exceed_WQO_geo, ~other,
-  #   "ecoli", "ecoli_qual", "ecoli_mdl", "ecoli_rl", "ecoli_WQO_ss", NA, "exceed_ecoli_WQO_ss", "ecoli_geomean", "ecoli_geo_count", "ecoli_WQO_geo", NA, "exceed_ecoli_WQO_geo", NA,
-  #   "fecal_coliform", "fc_qual", "fc_mdl", "fc_rl", "fc_WQO_ss", 400, "exceed_fc_WQO_ss", "fc_geomean", "fc_geo_count", "fc_WQO_geo", 200, "exceed_fc_WQO_geo", NA,
-  #   "total_coliform", "tc_qual", "tc_mdl", "tc_rl", "tc_WQO_ss", 10000, "exceed_tc_WQO_ss", "tc_geomean", "tc_geo_count", "tc_WQO_geo", 1000, "exceed_tc_WQO_geo", NA,
-  #   "enterococcus", "ent_qual", "ent_mdl", "ent_rl", "ent_WQO_ss", 104, "exceed_ent_WQO_ss", "ent_geomean", "ent_geo_count", "ent_WQO_geo", 35, "exceed_ent_WQO_geo", NA
-  # )
-
 
   if (six_week){
 
@@ -129,15 +117,18 @@ bact_geomeans <- function(df, six_week = TRUE, ...){
 
 #' Check Geometric Means Against Limitations
 #'
-#' Expands the input data frame to include columns that list relevant geometric mean water quality
-#' objectives and compliance with the objective.
+#' Expands the input data frame to include columns that list relevant geometric
+#' mean water quality objectives and compliance with the objective.
 #'
-#' @param df a data frame of indicator bacteria monitoring data that has been tidied by
-#' tidy_bacteria(df), has daily rows between the first and last SampleDate using expand_dates(df)
-#' and includes geometric mean calculations using bact_geomeans(df)
-#' @param six_week a logical value indicating whether 42-day geomeans were calculated every Sunday
-#' periods or 30-day geomeans were calculated every day with a result.
-#' @return an expanded data frame with columns for relevant water quality objectives and compliance
+#' @param df a data frame of indicator bacteria monitoring data that has been
+#' tidied by tidy_bacteria(df), has daily rows between the first and last
+#' SampleDate using expand_dates(df) and includes geometric mean calculations
+#' using bact_geomeans(df)
+#' @param six_week a logical value indicating whether 42-day geomeans were
+#' calculated every Sunday periods or 30-day geomeans were calculated every day
+#' with a result.
+#' @return an expanded data frame with columns for relevant water quality
+#' objectives and compliance
 #' @export
 
 check_geolimits <- function(df, BU = "REC-1", water_type = "marine", six_week = TRUE, ...){
@@ -175,12 +166,13 @@ check_geolimits <- function(df, BU = "REC-1", water_type = "marine", six_week = 
 
 #' Check Single Sample Results Against Limitations
 #'
-#' Expands the input data frame to include columns that list relevant single sample water quality
-#' objectives and compliance with the objective.
+#' Expands the input data frame to include columns that list relevant single
+#' sample water quality objectives and compliance with the objective.
 #'
-#' @param df a data frame of indicator bacteria monitoring data that has been tidied by
-#' tidy_bacteria(df)
-#' @return an expanded data frame with columns for relevant water quality objectives and compliance
+#' @param df a data frame of indicator bacteria monitoring data that has been
+#' tidied by tidy_bacteria(df)
+#' @return an expanded data frame with columns for relevant water quality
+#' objectives and compliance
 #' @export
 
 check_sslimits <- function(df, BU = "REC-1", water_type = "marine"){
@@ -211,9 +203,10 @@ check_sslimits <- function(df, BU = "REC-1", water_type = "marine"){
 
 #' Convert Weather Condition
 #'
-#' Convert WeatherCondition entries of "Dry" to "Winter Dry" and "Summer Dry" depending on the date.
-#' "Winter Dry" are dry weather days occuring on November 1 through March 31. "Summer Dry" are dry
-#' weather days occurring on April 1 through October 31.
+#' Convert WeatherCondition entries of "Dry" to "Winter Dry" and "Summer Dry"
+#' depending on the date. "Winter Dry" are dry weather days occuring on
+#' November 1 through March 31. "Summer Dry" are dry weather days occurring on
+#' April 1 through October 31.
 #'
 #' @param df a data frame with WeatherCondition and SampleDate columns
 #' @return a data frame
@@ -229,12 +222,13 @@ convertWeather <- function(df){
 
 #' Check Fecal-To-Total Ratio
 #'
-#' Inserts columns that calculate the fecal coliform to total coliform ratio, show the single sample
-#' objective for total coliform if applicable, and show compliance with applicable objectives.
+#' Inserts columns that calculate the fecal coliform to total coliform ratio,
+#' show the single sample objective for total coliform if applicable, and show
+#' compliance with applicable objectives.
 #'
 #' @param df a tidy data frame
-#' @param water_type a string of either "fresh" or "marine' representing the water type
-#'     of the water body
+#' @param water_type a string of either "fresh" or "marine' representing the
+#' water type of the water body
 #' @return a data frame
 
 check_fecal_to_total <- function(df, ...){
@@ -489,21 +483,6 @@ annual_geo_exceedances <- function(tidy_df, station, start_date, end_date, april
 
 order_bacteria_columns <- function(df){
 
-  # df %>%
-  #   select(StationCode, SampleDate, WeatherCondition,
-  #          ecoli, ecoli_n, ecoli_qual, ecoli_mdl, ecoli_rl, ecoli_WQO_ss, exceed_ecoli_WQO_ss,
-  #          ecoli_geomean, ecoli_geo_count, ecoli_WQO_geo, exceed_ecoli_WQO_geo,
-  #          fecal_coliform, fc_n, fc_qual, fc_mdl, fc_rl, fc_WQO_ss, exceed_fc_WQO_ss,
-  #          fc_geomean, fc_geo_count, fc_WQO_geo, exceed_fc_WQO_geo,
-  #          total_coliform, tc_n, tc_qual, tc_mdl, tc_rl, tc_WQO_ss, exceed_tc_WQO_ss,
-  #          tc_geomean, tc_geo_count, tc_WQO_geo, exceed_tc_WQO_geo,
-  #          enterococcus, ent_n, ent_qual, ent_mdl, ent_rl, ent_WQO_ss, exceed_ent_WQO_ss,
-  #          ent_geomean, ent_geo_count, ent_WQO_geo, exceed_ent_WQO_geo,
-  #          fc_to_tc, tc_WQO_ss_2, exceed_tc_WQO_ss_2,
-  #          exceed_day, Data_Row,
-  #          everything()
-  #          )
-
   variables <- c(
     "StationCode", "SampleDate", "WeatherCondition",
     # E. coli
@@ -525,18 +504,6 @@ order_bacteria_columns <- function(df){
 
   df %>%
     select(one_of(variables), everything())
-
-  # df <- df[, names(df) %in% c(
-  #   c("StationCode", "SampleDate", "WeatherCondition"),
-  #   c("ecoli", "ecoli_n",  "ecoli_qual", "ecoli_mdl", "ecoli_rl", "ecoli_WQO_ss", "exceed_ecoli_WQO_ss", "ecoli_geomean", "ecoli_geo_count", "ecoli_WQO_geo", "exceed_ecoli_WQO_geo"),
-  #   c("fecal_coliform", "fc_n", "fc_qual", "fc_mdl", "fc_rl", "fc_WQO_ss", "exceed_fc_WQO_ss",  "fc_geomean", "fc_geo_count", "fc_WQO_geo", "exceed_fc_WQO_geo"),
-  #   c("total_coliform", "tc_n", "tc_qual", "tc_mdl", "tc_rl", "tc_WQO_ss", "exceed_tc_WQO_ss",  "tc_geomean", "tc_geo_count", "tc_WQO_geo", "exceed_tc_WQO_geo"),
-  #   c("enterococcus", "ent_n", "ent_qual", "ent_mdl", "ent_rl", "ent_WQO_ss", "exceed_ent_WQO_ss", "ent_geomean", "ent_geo_count", "ent_WQO_geo", "exceed_ent_WQO_geo"),
-  #   c("fc_to_tc", "tc_WQO_ss_2", "exceed_tc_WQO_ss_2"),
-  #   c("exceed_day", "Data_Row")
-  # )]
-  #
-  # df
 }
 
 
@@ -621,8 +588,3 @@ bact_heatmap <- function(tidy_df, title, subtitle){
                         aes(monthweek, weekdayf, shape = WeatherCondition)) +
     ggplot2::scale_shape_manual(values = c(0, 16))
 }
-
-
-
-
-
