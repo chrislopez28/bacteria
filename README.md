@@ -34,3 +34,5 @@ The `ann_exceeds` function calculates the number of _Annual Exceedance Days_. Th
 ### Temporal Heatmap Visualizations
 
 The `bact_heatmap` function creates a heatmap that summarizes compliance with bacteria water quality objectives while also providing information on sampling dates and weather conditions. 
+
+![An Example Temporal Heatmap](https://github.com/chrislopez28/bacteria/blob/master/heatmap5.png "Example Heatmap")
